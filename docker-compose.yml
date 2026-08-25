@@ -1,0 +1,92 @@
+x-operation-service: &operation-service
+  build:
+    context: .
+    dockerfile: backend/Dockerfile
+  restart: unless-stopped
+  expose:
+    - "8080"
+  networks:
+    - calculator-app-network
+
+services:
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    networks:
+      - calculator-app-network
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE: orchestrator
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      PORT: "8080"
+      SERVICE_TIMEOUT: "${SERVICE_TIMEOUT:-3s}"
+      ADDITION_URL: http://addition:8080
+      SUBTRACTION_URL: http://subtraction:8080
+      MULTIPLICATION_URL: http://multiplication:8080
+      DIVISION_URL: http://division:8080
+      POWER_URL: http://power:8080
+      SQRT_URL: http://sqrt:8080
+      PERCENTAGE_URL: http://percentage:8080
+    depends_on:
+      addition: { condition: service_healthy }
+      subtraction: { condition: service_healthy }
+      multiplication: { condition: service_healthy }
+      division: { condition: service_healthy }
+      power: { condition: service_healthy }
+      sqrt: { condition: service_healthy }
+      percentage: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - calculator-app-network
+
+  addition:
+    <<: *operation-service
+    build: { context: ., dockerfile: backend/Dockerfile, args: { SERVICE: addition } }
+    healthcheck: &operation-healthcheck { test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"], interval: 5s, timeout: 3s, retries: 10 }
+  subtraction:
+    <<: *operation-service
+    build: { context: ., dockerfile: backend/Dockerfile, args: { SERVICE: subtraction } }
+    healthcheck: *operation-healthcheck
+  multiplication:
+    <<: *operation-service
+    build: { context: ., dockerfile: backend/Dockerfile, args: { SERVICE: multiplication } }
+    healthcheck: *operation-healthcheck
+  division:
+    <<: *operation-service
+    build: { context: ., dockerfile: backend/Dockerfile, args: { SERVICE: division } }
+    healthcheck: *operation-healthcheck
+  power:
+    <<: *operation-service
+    build: { context: ., dockerfile: backend/Dockerfile, args: { SERVICE: power } }
+    healthcheck: *operation-healthcheck
+  sqrt:
+    <<: *operation-service
+    build: { context: ., dockerfile: backend/Dockerfile, args: { SERVICE: sqrt } }
+    healthcheck: *operation-healthcheck
+  percentage:
+    <<: *operation-service
+    build: { context: ., dockerfile: backend/Dockerfile, args: { SERVICE: percentage } }
+    healthcheck: *operation-healthcheck
+
+networks:
+  calculator-app-network:
+    name: calculator-app-network
+    driver: bridge
