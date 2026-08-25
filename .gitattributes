@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+* *.md text
+* *.yml text
+* *.yaml text
+* text=auto eol=lf
