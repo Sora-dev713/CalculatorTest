@@ -34,7 +34,7 @@ Orquestador
 backend/
 ├── cmd/
 │   ├── orchestrator/       Punto de entrada del orquestador
-│   ├── addition/           Ejecutable del servicio de suma
+│   ├── addition/           Ejecutable y tests del servicio de suma
 │   ├── subtraction/        Ejecutable del servicio de resta
 │   ├── multiplication/     Ejecutable del servicio de multiplicación
 │   ├── division/           Ejecutable del servicio de división
@@ -232,10 +232,11 @@ $env:PORT="8081"
 go -C backend run ./cmd/addition
 ```
 
-Los tests están organizados por responsabilidad:
+Los tests están agrupados junto al servicio o componente que verifican. Los archivos `*_test.go` no forman parte de los binarios ni se copian a las imágenes Docker:
 
 - `expression/parser_test.go`: gramática, precedencia y expresiones inválidas.
-- `operation/handler_test.go`: contratos JSON y casos de dominio de las siete operaciones.
+- `cmd/<servicio>/main_test.go`: comportamiento y casos de dominio propios de cada microservicio.
+- `operation/handler_test.go`: validaciones comunes del adaptador HTTP reutilizado por los servicios.
 - `orchestrator/handler_test.go`: validación previa, propagación de errores, timeout y evaluación integrada usando handlers reales.
 
 ## English summary
