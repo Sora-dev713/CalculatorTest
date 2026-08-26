@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 type ApiResponse = { Status: 'ok'; resultado: number } | { Status: 'ERROR'; Error: string }
 type Key = { label: string; value: string; kind?: 'action' | 'operator' | 'equals'; wide?: boolean; aria?: string }
@@ -24,7 +24,12 @@ export default function App() {
   const [result, setResult] = useState('0')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [expanded, setExpanded] = useState(false)
   const toastTimer = useRef<number | undefined>(undefined)
+  const mainEditor = useRef<HTMLTextAreaElement>(null)
+  const expandedEditor = useRef<HTMLTextAreaElement>(null)
+  const activeEditor = useRef<HTMLTextAreaElement | null>(null)
+  const pendingCursor = useRef<number | null>(null)
 
   const showError = useCallback((message: string) => {
     setError(message)
@@ -33,6 +38,15 @@ export default function App() {
   }, [])
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), [])
+
+  useLayoutEffect(() => {
+    if (pendingCursor.current === null) return
+    const target = activeEditor.current ?? mainEditor.current
+    const position = pendingCursor.current
+    pendingCursor.current = null
+    target?.focus()
+    target?.setSelectionRange(position, position)
+  }, [expression])
 
   const calculate = useCallback(async () => {
     if (loading) return
@@ -48,16 +62,52 @@ export default function App() {
     } finally { setLoading(false) }
   }, [expression, loading, showError])
 
+  const updateAtSelection = useCallback((insert: string, removeBefore = false) => {
+    const editor = activeEditor.current ?? mainEditor.current
+    const start = editor?.selectionStart ?? expression.length
+    const end = editor?.selectionEnd ?? start
+    const from = removeBefore && start === end ? Math.max(0, start - 1) : start
+    const next = `${expression.slice(0, from)}${insert}${expression.slice(end)}`.slice(0, 512)
+    const nextCursor = Math.min(from + insert.length, next.length)
+    pendingCursor.current = nextCursor
+    setExpression(next)
+  }, [expression])
+
   const press = useCallback((value: string) => {
-    if (value === 'clear') { setExpression(''); setResult('0'); return }
-    if (value === 'backspace') { setExpression(current => current.slice(0, -1)); return }
+    if (value === 'clear') { setExpression(''); setResult('0'); window.requestAnimationFrame(() => (activeEditor.current ?? mainEditor.current)?.focus()); return }
+    if (value === 'backspace') { updateAtSelection('', true); return }
     if (value === 'equals') { void calculate(); return }
-    setExpression(current => (current + value).slice(0, 512))
-  }, [calculate])
+    updateAtSelection(value)
+  }, [calculate, updateAtSelection])
+
+  const openExpanded = useCallback(() => {
+    const position = mainEditor.current?.selectionStart ?? expression.length
+    setExpanded(true)
+    window.requestAnimationFrame(() => {
+      activeEditor.current = expandedEditor.current
+      expandedEditor.current?.focus()
+      expandedEditor.current?.setSelectionRange(position, position)
+    })
+  }, [expression.length])
+
+  const closeExpanded = useCallback(() => {
+    const position = expandedEditor.current?.selectionStart ?? expression.length
+    setExpanded(false)
+    window.requestAnimationFrame(() => {
+      activeEditor.current = mainEditor.current
+      mainEditor.current?.focus()
+      mainEditor.current?.setSelectionRange(position, position)
+    })
+  }, [expression.length])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return
+      if (event.target instanceof HTMLTextAreaElement) {
+        if (event.key === 'Enter') { event.preventDefault(); void calculate() }
+        else if (event.key === 'Escape' && expanded) { event.preventDefault(); closeExpanded() }
+        return
+      }
       if (event.key === 'Enter' || event.key === '=') { event.preventDefault(); void calculate(); return }
       if (event.key === 'Backspace') { event.preventDefault(); press('backspace'); return }
       if (event.key === 'Escape') { event.preventDefault(); press('clear'); return }
@@ -66,15 +116,15 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [calculate, press])
+  }, [calculate, closeExpanded, expanded, press])
 
   return <main className="app-shell">
     {error && <div className="toast" role="alert" aria-live="assertive"><span aria-hidden="true">!</span>{error}</div>}
     <section className="calculator" aria-label="Calculadora">
       <header className="brand"><span className="brand-mark">M</span><div><h1>MintCalc</h1><p>Distributed calculator</p></div></header>
       <div className="display" aria-live="polite">
-        <label htmlFor="expression">Expresión</label>
-        <input id="expression" value={expression} onChange={event => setExpression(event.target.value.slice(0, 512))} placeholder="sqrt(16) + 2^3" autoComplete="off" spellCheck={false} />
+        <div className="expression-heading"><label htmlFor="expression">Expresión</label><button type="button" className="expand-button" onClick={openExpanded} aria-label="Expandir expresión">⤢ <span>Expandir</span></button></div>
+        <textarea ref={mainEditor} id="expression" rows={2} value={expression} onFocus={event => { activeEditor.current = event.currentTarget }} onChange={event => setExpression(event.target.value.slice(0, 512))} placeholder="sqrt(16) + 2^3" autoComplete="off" spellCheck={false} />
         <div className="result-row"><span>Resultado</span><output aria-label="Resultado">{loading ? 'Calculando…' : result}</output></div>
       </div>
       <div className="keypad">
@@ -83,5 +133,12 @@ export default function App() {
       <aside className="help"><strong>Sintaxis avanzada</strong><span><code>sqrt(16)</code> raíz · <code>2^8</code> potencia · <code>percent(200,10)</code> porcentaje</span></aside>
     </section>
     <footer>Usa los botones o escribe con tu teclado.</footer>
+    {expanded && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) closeExpanded() }}>
+      <section className="expression-modal" role="dialog" aria-modal="true" aria-labelledby="expanded-title">
+        <header><div><span>Editor de expresión</span><h2 id="expanded-title">Consulta completa</h2></div><button type="button" className="modal-close" onClick={closeExpanded} aria-label="Cerrar vista expandida">×</button></header>
+        <textarea ref={expandedEditor} aria-label="Expresión expandida" value={expression} onFocus={event => { activeEditor.current = event.currentTarget }} onChange={event => setExpression(event.target.value.slice(0, 512))} spellCheck={false} />
+        <div className="modal-footer"><span>{expression.length} / 512 caracteres</span><button type="button" onClick={() => void calculate()} disabled={loading}>{loading ? 'Calculando…' : 'Calcular expresión'}</button></div>
+      </section>
+    </div>}
   </main>
 }

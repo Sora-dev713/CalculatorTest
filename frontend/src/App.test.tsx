@@ -27,4 +27,22 @@ describe('MintCalc', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch'); const user = userEvent.setup(); render(<App />); await user.click(screen.getByRole('button', { name: 'Calcular' }))
     expect(screen.getByRole('alert')).toBeInTheDocument(); expect(fetchMock).not.toHaveBeenCalled()
   })
+  it('inserts keypad values at the current cursor position', async () => {
+    const user = userEvent.setup(); render(<App />)
+    const editor = screen.getByLabelText('Expresión') as HTMLTextAreaElement
+    await user.type(editor, '13'); editor.setSelectionRange(1, 1)
+    await user.click(screen.getByRole('button', { name: 'Sumar' }))
+    expect(editor).toHaveValue('1+3'); expect(editor.selectionStart).toBe(2)
+  })
+  it('opens an expanded synchronized expression editor', async () => {
+    const user = userEvent.setup(); render(<App />)
+    await user.type(screen.getByLabelText('Expresión'), 'percent(200,10)')
+    await user.click(screen.getByRole('button', { name: 'Expandir expresión' }))
+    const expanded = screen.getByRole('textbox', { name: 'Expresión expandida' })
+    expect(screen.getByRole('dialog', { name: 'Consulta completa' })).toBeInTheDocument()
+    expect(expanded).toHaveValue('percent(200,10)')
+    await user.type(expanded, '+5'); expect(screen.getByText('17 / 512 caracteres')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cerrar vista expandida' }))
+    expect(screen.getByLabelText('Expresión')).toHaveValue('percent(200,10)+5')
+  })
 })
