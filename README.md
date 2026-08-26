@@ -87,8 +87,11 @@ Para una explicación detallada de la estructura, el parser y el flujo interno, 
 ```bash
 go -C backend test ./...
 go -C backend vet ./...
+go -C backend test '-coverpkg=./...' '-coverprofile=coverage.out' ./...
+go -C backend tool cover '-func=coverage.out'
 cd frontend
 npm test
+npm run test:coverage
 npm run build
 npm run lint
 ```
@@ -103,7 +106,7 @@ npm run lint
 - Se usa `float64`, rechazando resultados no finitos. La UI limita el ruido visual sin alterar la respuesta de la API.
 - Nginx concentra el acceso público y evita CORS o la exposición accidental de servicios internos.
 
-Los prompts entregables se encuentran en [docs/PROMPTS.md](docs/PROMPTS.md).
+Los prompts entregables se encuentran en [docs/PROMPTS.md](docs/PROMPTS.md). El cumplimiento del correo original está detallado en [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) y los resultados de cobertura en [docs/COVERAGE.md](docs/COVERAGE.md).
 
 ---
 

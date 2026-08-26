@@ -1,6 +1,8 @@
 .cache/
 frontend/node_modules/
 frontend/dist/
+frontend/coverage/
+backend/coverage.out
 frontend/*.tsbuildinfo
 frontend/vite.config.js
 frontend/vite.config.d.ts
