@@ -8,9 +8,13 @@ import (
 	"calculator-app/internal/api"
 )
 
+// BinaryFunc is the common signature implemented by two-operand calculations.
 type BinaryFunc func(float64, float64) (float64, error)
+
+// UnaryFunc is the common signature implemented by one-operand calculations.
 type UnaryFunc func(float64) (float64, error)
 
+// BinaryHandler adapts a BinaryFunc to the shared strict HTTP contract.
 func BinaryHandler(calculate BinaryFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -44,6 +48,7 @@ func BinaryHandler(calculate BinaryFunc) http.Handler {
 	})
 }
 
+// UnaryHandler adapts a UnaryFunc to the shared strict HTTP contract.
 func UnaryHandler(calculate UnaryFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -77,15 +82,24 @@ func UnaryHandler(calculate UnaryFunc) http.Handler {
 	})
 }
 
-func Add(a, b float64) (float64, error)      { return a + b, nil }
+// Add returns the sum of a and b.
+func Add(a, b float64) (float64, error) { return a + b, nil }
+
+// Subtract returns b subtracted from a.
 func Subtract(a, b float64) (float64, error) { return a - b, nil }
+
+// Multiply returns the product of a and b.
 func Multiply(a, b float64) (float64, error) { return a * b, nil }
+
+// Divide returns a divided by b and rejects a zero divisor.
 func Divide(a, b float64) (float64, error) {
 	if b == 0 {
 		return 0, errors.New("division by zero is not allowed")
 	}
 	return a / b, nil
 }
+
+// Power raises a to b and rejects results outside the finite float64 domain.
 func Power(a, b float64) (float64, error) {
 	result := math.Pow(a, b)
 	if math.IsNaN(result) || math.IsInf(result, 0) {
@@ -93,10 +107,14 @@ func Power(a, b float64) (float64, error) {
 	}
 	return result, nil
 }
+
+// SquareRoot returns the principal square root and rejects negative values.
 func SquareRoot(value float64) (float64, error) {
 	if value < 0 {
 		return 0, errors.New("square root of a negative number is not allowed")
 	}
 	return math.Sqrt(value), nil
 }
+
+// Percentage returns percentage percent of value; negative percentages are valid.
 func Percentage(value, percentage float64) (float64, error) { return value * percentage / 100, nil }

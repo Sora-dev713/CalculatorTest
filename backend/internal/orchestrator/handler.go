@@ -7,10 +7,12 @@ import (
 	"calculator-app/internal/expression"
 )
 
+// CalculateRequest is the public request accepted by the orchestrator.
 type CalculateRequest struct {
 	Expression *string `json:"expression"`
 }
 
+// Handler validates and parses an expression before starting distributed evaluation.
 func Handler(client *Client) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

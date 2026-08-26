@@ -6,15 +6,20 @@ import (
 	"unicode"
 )
 
+// Kind identifies the semantic role of an expression node.
 type Kind int
 
 const (
+	// Number is a literal, Binary is a two-operand operator, Unary is a sign,
+	// and Function represents one of the supported named functions.
 	Number Kind = iota
 	Binary
 	Unary
 	Function
 )
 
+// Node is an element of the abstract syntax tree produced by Parse.
+// Only fields relevant to the node's Kind are populated.
 type Node struct {
 	Kind        Kind
 	Value       float64
@@ -101,6 +106,8 @@ type parser struct {
 	current int
 }
 
+// Parse validates the complete input and builds an abstract syntax tree.
+// Callers can therefore guarantee that no service is contacted for invalid syntax.
 func Parse(input string) (*Node, error) {
 	if len(input) == 0 {
 		return nil, fmt.Errorf("expression cannot be empty")
@@ -171,6 +178,8 @@ func (p *parser) power() (*Node, error) {
 		return nil, err
 	}
 	if p.match(tPower) {
+		// Parsing the right operand as unary makes exponentiation right-associative:
+		// 2^3^2 becomes 2^(3^2), while still allowing negative exponents.
 		right, err := p.unary()
 		if err != nil {
 			return nil, err

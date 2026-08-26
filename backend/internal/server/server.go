@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Run starts an operation service with consistent routes and defensive timeouts.
 func Run(handler http.Handler) {
 	port := os.Getenv("PORT")
 	if port == "" {

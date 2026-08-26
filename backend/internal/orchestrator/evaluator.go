@@ -14,11 +14,14 @@ import (
 	"calculator-app/internal/expression"
 )
 
+// Client evaluates an expression tree using independently deployed operation services.
 type Client struct {
 	HTTP *http.Client
 	URLs map[string]string
 }
 
+// Evaluate resolves the tree depth-first and stops immediately on the first error.
+// Literal values and unary signs are local; mathematical operations use HTTP services.
 func (c *Client) Evaluate(ctx context.Context, node *expression.Node) (float64, error) {
 	switch node.Kind {
 	case expression.Number:
